@@ -4,6 +4,8 @@
 
 package com.mycompany.motorph;
 
+import com.mycompany.motorph.helpers.PrintFormatter;
+
 /**
  *
  * @author reden
@@ -11,6 +13,6 @@ package com.mycompany.motorph;
 public class Motorph {
 
     public static void main(String[] args) {
-        System.out.println("Hello World!");
+        PrintFormatter.Panel("Motor PH", new String[]{"1.) Login", "2.) Exit"}, "Enter your choice:");
     }
 }
