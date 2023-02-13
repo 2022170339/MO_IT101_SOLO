@@ -43,11 +43,20 @@ public class PrintFormatter {
         Input(prompt);
     }
 
+    public static void Panel(String title, String prompt) {
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+        int COUNT = 30;
+        PrintLine(COUNT);
+        System.out.println("|");
+        Title(title);
+        System.out.println("|");
+        PrintLine(COUNT);
+        Input(prompt);
+    }
+
     public static void Input(String prompt) {
         System.out.print(">" + prompt);
-        Scanner scanner = new Scanner(System.in);
-        String ans = scanner.nextLine();
-        System.out.println(ans);
     }
 
     public static void Title(String title) {
