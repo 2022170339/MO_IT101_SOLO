@@ -1,9 +1,10 @@
 package com.mycompany.motorph.helpers;
 
 public enum State {
-    Main,
+    Welcome,
     Login,
     LoginEmployee,
     LoginPayroll,
-    Exit
+    Exit,
+    Error
 }
