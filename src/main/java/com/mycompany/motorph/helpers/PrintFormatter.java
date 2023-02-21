@@ -75,4 +75,9 @@ public class PrintFormatter {
         }
         System.out.println();
     }
+
+    public static void InvalidInput(String prompt) {
+        System.out.println("Invalid input.");
+        System.out.print(">" + prompt);
+    }
 }

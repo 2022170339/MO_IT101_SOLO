@@ -5,6 +5,16 @@ public enum State {
     Login,
     LoginEmployee,
     LoginPayroll,
+    ViewProfile,
+    EmployeeDashboard,
+    PayrollDashboard,
+    ViewTimeSheet,
+    ViewPayslip,
+    ViewManageEmployee,
+    ViewManageTimesheet,
     Exit,
-    Error
+    Error, 
+    NoAccount, 
+    WrongPassword, 
+    InvalidInput, 
 }

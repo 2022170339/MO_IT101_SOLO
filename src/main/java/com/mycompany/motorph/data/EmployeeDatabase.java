@@ -8,6 +8,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 import com.mycompany.motorph.data.model.EmployeeDetail;
@@ -64,9 +65,10 @@ public class EmployeeDatabase {
             scanner.close();
             return employees;
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            return new ArrayList<EmployeeDetail>();
+        } catch (NoSuchElementException e) {
+            return new ArrayList<EmployeeDetail>();
         }
-        return null;
     }
 
     public Boolean insert(EmployeeDetail data) {
