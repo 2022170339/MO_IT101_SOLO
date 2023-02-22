@@ -13,8 +13,9 @@ public enum State {
     ViewManageEmployee,
     ViewManageTimesheet,
     Exit,
-    Error, 
-    NoAccount, 
-    WrongPassword, 
-    InvalidInput, 
+    Error,
+    NoAccount,
+    WrongPassword,
+    InvalidInput,
+    ListTimeSheet,
 }

@@ -4,7 +4,11 @@
 
 package com.mycompany.motorph;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -16,6 +20,7 @@ import com.mycompany.motorph.data.EmployeeDatabase;
 import com.mycompany.motorph.data.model.Account;
 import com.mycompany.motorph.data.model.Attendance;
 import com.mycompany.motorph.data.model.EmployeeDetail;
+import com.mycompany.motorph.data.model.Timesheet;
 import com.mycompany.motorph.helpers.AccountType;
 import com.mycompany.motorph.helpers.PrintFormatter;
 import com.mycompany.motorph.helpers.State;
@@ -69,7 +74,7 @@ public class Motorph {
                 ViewProfilePage();
                 break;
             case ViewTimeSheet:
-                ViewTimeSheet();
+                ViewTimeSheetPage();
                 break;
             case ViewPayslip:
                 ViewPaySlips();
@@ -77,6 +82,9 @@ public class Motorph {
             case ViewManageEmployee:
                 break;
             case ViewManageTimesheet:
+                break;
+            case ListTimeSheet:
+                PastTimeSheet();
                 break;
             case Exit:
                 PrintFormatter.Panel("Motor PH", new String[] { "Exiting..." });
@@ -105,6 +113,20 @@ public class Motorph {
             default:
                 break;
         }
+    }
+
+    private static void PastTimeSheet() {
+        List<Timesheet> timesheets = AttendanceDatabase.getSortedTimesheet(loggedInUser.getId());
+        List<String> dates = new ArrayList<String>();
+        timesheets.forEach((t) -> dates.add(DateFormatter(t.getDate(), t.getTimeIn(), t.getTimeOut())));
+        PrintFormatter.Panel("Past Time Sheet - ID#" + loggedInUser.getId(), dates.toArray(new String[0]),
+                "Press any key to go back");
+        scanner.nextLine();
+        scanner.nextLine();
+        if (accountType == AccountType.Employee)
+            state = State.EmployeeDashboard;
+        else
+            state = State.PayrollDashboard;
     }
 
     private static void ViewPaySlips() {
@@ -413,42 +435,69 @@ public class Motorph {
         state = accountType == AccountType.Employee ? State.EmployeeDashboard : State.PayrollDashboard;
     }
 
-    // View Timesheet
-    // NOTE: THIS NEEDS MASSIVE REFACTORING! BE CAREFUL!
-    static void ViewTimeSheet() {
-        String[] choices = new String[6];
+    static void ViewTimeSheetPage() {
+        List<String> info = new ArrayList<String>();
+        List<String> choices = new ArrayList<String>();
         Attendance attendance = AttendanceDatabase.checkAttendance(loggedInUser.getId());
-        boolean isWeekend = false;
+        boolean isWeekend = AttendanceDatabase.isWeekend(LocalDate.now());
+        boolean clockIn = false;
+        boolean clockOut = false;
 
-        isWeekend = AttendanceDatabase.isWeekend(LocalDate.now());
         if (isWeekend) {
-            choices[0] = "You have no shift today.";
+            info.clear();
+            choices.clear();
+            info.add("You have no shift today.");
+            choices.add("1.) List Past Timesheet");
+            choices.add("2.) Back");
         } else {
-            choices[0] = "Shift: " + AttendanceDatabase.getTodayDate();
-            if (attendance != null) {
-                choices[1] = attendance.getTimeIn().isEmpty() ? "Clock-in: Not set"
-                        : "Clock-in: " + attendance.getTimeIn();
-                choices[2] = attendance.getTimeOut().isEmpty() ? "Clock-out: Not set"
-                        : "Clock-out: " + attendance.getTimeOut();
-                choices[4] = attendance.getTimeIn().isEmpty() ? "1.) Clock-in" : "1.) Clock-out";
+            info.clear();
+            choices.clear();
+            info.add("Shift: " + AttendanceDatabase.getTodayDate());
 
-                choices[5] = "2.) Back";
-                if (!attendance.getTimeIn().isEmpty() && !attendance.getTimeOut().isEmpty()) {
-                    choices[4] = "";
-                    choices[5] = "1.) Back";
-                }
+            if (attendance == null) {
+                clockIn = false;
+                clockOut = false;
+                info.add("Clock-In Time: Not set");
+                info.add("Clock-Out Time: Not set");
+                info.add("");
+                choices.add("1.) Clock-in");
+                choices.add("2.) List Past Timesheet");
+                choices.add("3.) Back");
             } else {
-                choices[1] = "Clock-in: Not set";
-                choices[2] = "Clock-out: Not set";
-                choices[4] = "1.) Clock-in";
-                choices[5] = "2.) Back";
+                clockIn = !attendance.getTimeIn().isEmpty();
+                clockOut = !attendance.getTimeOut().isEmpty();
+
+                if (clockIn && clockOut) {
+                    info.add("Clock-In Time: " + attendance.getTimeIn());
+                    info.add("Clock-Out Time: " + attendance.getTimeOut());
+                    info.add("");
+                    choices.add("1.) List Past Timesheet");
+                    choices.add("2.) Back");
+                } else if (clockIn && !clockOut) {
+                    info.add("Clock-In Time: " + attendance.getTimeIn());
+                    info.add("Clock-Out Time: Not set");
+                    info.add("");
+                    choices.add("1.) Clock-out");
+                    choices.add("2.) List Past Timesheet");
+                    choices.add("3.) Back");
+                } else {
+                    info.add("Clock-In Time: Not set");
+                    info.add("Clock-Out Time: Not set");
+                    info.add("");
+                    choices.add("1.) Clock-in");
+                    choices.add("2.) List Past Timesheet");
+                    choices.add("3.) Back");
+                }
             }
-            choices[3] = "";
         }
 
-        if (!isWeekend) {
+        boolean min = choices.size() == 2;
+        List<String> all = new ArrayList<String>();
+        all.addAll(info);
+        all.addAll(choices);
+        if (min) {
             PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
-                    choices, "Enter your choice:");
+                    all.toArray(new String[0]), "Enter your choice:");
 
             int input = 0;
             boolean valid = false;
@@ -459,7 +508,7 @@ public class Motorph {
                         PrintFormatter.InvalidInput("Enter your choice:");
                     }
                     input = Integer.parseInt(scanner.next());
-                    if (input <= 2 && input >= 1)
+                    if (input <= choices.size() && input >= 1)
                         valid = true;
                     else {
                         PrintFormatter.InvalidInput("Enter your choice:");
@@ -470,48 +519,12 @@ public class Motorph {
             }
 
             if (input == 1) {
-                if (choices[4].equals("1.) Clock-in")) {
-                    AttendanceDatabase.insertTimeIn(loggedInUser.getId());
-                    PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
-                            new String[] { "Clocked-in successfully!", "Going back..." });
-                    scanner.nextLine();
-                    scanner.nextLine();
-                    if (CheckAccountType(loggedInUser.getPosition()) == AccountType.Employee)
-                        state = State.EmployeeDashboard;
-                    else
-                        state = State.PayrollDashboard;
-                } else if (choices[4].equals("1.) Clock-out")) {
-                    if (attendance.getTimeOut().isEmpty()) {
-                        AttendanceDatabase.updateTimeOut(loggedInUser.getId());
-                        PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
-                                new String[] { "Clocked-out successfully!", "Going back..." });
-                        scanner.nextLine();
-                        scanner.nextLine();
-                        if (CheckAccountType(loggedInUser.getPosition()) == AccountType.Employee)
-                            state = State.EmployeeDashboard;
-                        else
-                            state = State.PayrollDashboard;
-                    } else {
-                        PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
-                                new String[] { "Going back..." });
-                        scanner.nextLine();
-                        scanner.nextLine();
-                        if (CheckAccountType(loggedInUser.getPosition()) == AccountType.Employee)
-                            state = State.EmployeeDashboard;
-                        else
-                            state = State.PayrollDashboard;
-                    }
-                } else {
-                    PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
-                            new String[] { "Going back..." });
-                    scanner.nextLine();
-                    scanner.nextLine();
-                    if (CheckAccountType(loggedInUser.getPosition()) == AccountType.Employee)
-                        state = State.EmployeeDashboard;
-                    else
-                        state = State.PayrollDashboard;
-                }
+                state = State.ListTimeSheet;
             } else if (input == 2) {
+                PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
+                        new String[] { "Going back..." });
+                scanner.nextLine();
+                scanner.nextLine();
                 if (CheckAccountType(loggedInUser.getPosition()) == AccountType.Employee)
                     state = State.EmployeeDashboard;
                 else
@@ -519,13 +532,53 @@ public class Motorph {
             }
         } else {
             PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
-                    new String[] { "You have no shift today." }, "Press any key to go back");
-            scanner.nextLine();
-            scanner.nextLine();
-            if (CheckAccountType(loggedInUser.getPosition()) == AccountType.Employee)
-                state = State.EmployeeDashboard;
-            else
-                state = State.PayrollDashboard;
+                    all.toArray(new String[0]), "Enter your choice:");
+
+            int input = 0;
+            boolean valid = false;
+            while (!valid) {
+                try {
+                    while (!scanner.hasNextInt()) {
+                        scanner.next();
+                        PrintFormatter.InvalidInput("Enter your choice:");
+                    }
+                    input = Integer.parseInt(scanner.next());
+                    if (input <= choices.size() && input >= 1)
+                        valid = true;
+                    else {
+                        PrintFormatter.InvalidInput("Enter your choice:");
+                    }
+                } catch (Exception e) {
+                    continue;
+                }
+            }
+
+            if (input == 1) {
+                if (clockIn) {
+                    PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
+                            new String[] { "Clocked-out successfully!" });
+                    scanner.nextLine();
+                    scanner.nextLine();
+                    AttendanceDatabase.updateTimeOut(loggedInUser.getId());
+                } else {
+                    PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
+                            new String[] { "Clocked-in successfully!" });
+                    scanner.nextLine();
+                    scanner.nextLine();
+                    AttendanceDatabase.insertTimeIn(loggedInUser.getId());
+                }
+            } else if (input == 2) {
+                state = State.ListTimeSheet;
+            } else if (input == 3) {
+                PrintFormatter.Panel("Timesheet - ID#" + loggedInUser.getId(),
+                        new String[] { "Going back..." });
+                scanner.nextLine();
+                scanner.nextLine();
+                if (CheckAccountType(loggedInUser.getPosition()) == AccountType.Employee)
+                    state = State.EmployeeDashboard;
+                else
+                    state = State.PayrollDashboard;
+            }
         }
     }
 
@@ -542,5 +595,9 @@ public class Motorph {
         }
 
         return accountType;
+    }
+
+    static String DateFormatter(String date, String t1, String t2) {
+        return String.format("%25s %10s %10s", date, t1, t2);
     }
 }

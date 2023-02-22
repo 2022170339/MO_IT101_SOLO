@@ -11,3 +11,5 @@ Employee #,Password
 10001,testing1234
 10012,testing1234
 10006,testing1234
+10018,testing1234
+10007,testing1234

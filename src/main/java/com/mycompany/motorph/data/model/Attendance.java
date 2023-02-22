@@ -42,7 +42,10 @@ public class Attendance {
     }
 
     public String getDate() {
+        // if (date.length() > 0) {
+        // } else {
         return date;
+        // }
     }
 
     public void setDate(String date) {
