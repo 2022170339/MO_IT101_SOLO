@@ -2174,15 +2174,3 @@ Employee #,Last Name,First Name,Date,Time-in,Time-out
 10023,Ramos,Carol,12/30/22,0:00,0:00
 10024,Maceda,Emelia,12/30/22,0:00,0:00
 10025,Aguilar,Delia,12/30/22,0:00,0:00
-10016,Delos Santos,Kolby,02/20/23,13:31,13:37
-10003,Brad,San Jose,02/20/23,13:55,13:55
-10001,Jose,Crisostomo,02/20/23,13:58,13:58
-10017,Vella,Santos,02/20/23,14:06,14:06
-10020,Percival,Gutierrez,02/20/23,14:09,14:09
-10016,Kolby,Delos Santos,02/21/23,16:11,16:14
-10018,Tomas,Del Rosario,02/21/23,16:16,16:16
-10003,Brad,San Jose,02/21/23,18:53,19:49
-10007,Martha,Farala,02/21/23,21:28,
-10001,Crisostomo,Jose,02/22/23,00:20,00:33
-10016,Delos Santos,Kolby,02/22/2023,17:56,17:56
-10003,San Jose,Brad,02/22/2023,17:57,17:57

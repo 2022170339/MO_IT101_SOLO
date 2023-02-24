@@ -1,1 +1,1 @@
-Employee #,PayBeginDate,PayEndDate,PayDate,RegularHours,OvertimeHours,RegularHoursPay,OvertimeHoursPay,GrossPay,NetPay,SSS,Philhealth,Pagibig,Tax,Other
+Employee #,PayBeginDate,PayEndDate,PayDate,RegularHours,OvertimeHours,RegularHoursPay,OvertimeHoursPay,GrossPay,NetPay,SSS,Philhealth,Pagibig,Tax

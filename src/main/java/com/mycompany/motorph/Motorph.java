@@ -4,24 +4,31 @@
 
 package com.mycompany.motorph;
 
-import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Scanner;
+
+import javax.xml.transform.stax.StAXResult;
 
 import com.mycompany.motorph.data.AccountDatabase;
 import com.mycompany.motorph.data.AttendanceDatabase;
 import com.mycompany.motorph.data.EmployeeDatabase;
+import com.mycompany.motorph.data.PayslipDatabase;
 import com.mycompany.motorph.data.model.Account;
 import com.mycompany.motorph.data.model.Attendance;
 import com.mycompany.motorph.data.model.EmployeeDetail;
+import com.mycompany.motorph.data.model.Payslip;
 import com.mycompany.motorph.data.model.Timesheet;
 import com.mycompany.motorph.helpers.AccountType;
+import com.mycompany.motorph.helpers.Deduction;
 import com.mycompany.motorph.helpers.PrintFormatter;
 import com.mycompany.motorph.helpers.State;
 
@@ -79,12 +86,17 @@ public class Motorph {
             case ViewPayslip:
                 ViewPaySlips();
                 break;
-            case ViewManageEmployee:
-                break;
             case ViewManageTimesheet:
+                ManageTimesheet();
                 break;
             case ListTimeSheet:
                 PastTimeSheet();
+                break;
+            case PendingTimesheet:
+                ViewPendingTimesheet();
+                break;
+            case CalculatePay:
+                CalculatePay();
                 break;
             case Exit:
                 PrintFormatter.Panel("Motor PH", new String[] { "Exiting..." });
@@ -115,6 +127,218 @@ public class Motorph {
         }
     }
 
+    private static void CalculatePay() {
+        PrintFormatter.Panel("Manage Timesheet - Calculate Pay",
+                "Enter account Id:");
+        int input = 0;
+        boolean valid = false;
+        EmployeeDetail employee = null;
+        while (!valid) {
+            try {
+                while (!scanner.hasNextInt()) {
+                    scanner.next();
+                    PrintFormatter.InvalidInput("Enter your choice:");
+                }
+                input = Integer.parseInt(scanner.next());
+                employee = EmployeeDatabase.findOne(input);
+                if (employee != null)
+                    valid = true;
+                else {
+                    PrintFormatter.InvalidInput("Enter your choice:");
+                }
+            } catch (Exception e) {
+                continue;
+            }
+        }
+        if (employee != null) {
+            PrintFormatter.Panel("Manage Timesheet - Calculate Pay",
+                    new String[] { "Enter date ranges", "Format:", "Date is limited to 5 days range",
+                            "MM/dd/yyyy-MM/dd/yyyy for example 02/24/2023-02/26/2023",
+                            "turns to February 24, 2023" },
+                    "Enter your date range: ");
+
+            String inp = "";
+            boolean isValid = false;
+            DateTimeFormatter df = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+            while (!isValid) {
+                try {
+                    while (!scanner.hasNext()) {
+                        scanner.next();
+                        PrintFormatter.InvalidInput("Enter your date range: ");
+                    }
+                    inp = scanner.next();
+                    String[] dates = inp.split("-");
+                    LocalDate d1 = LocalDate.parse(dates[0], df);
+                    LocalDate d2 = LocalDate.parse(dates[1], df);
+                    long days = 0;
+                    if (d1 != null && d2 != null) {
+                        days = ChronoUnit.DAYS.between(d1, d2);
+                    }
+                    if ((days + 1) == 5)
+                        isValid = true;
+                    else {
+                        PrintFormatter.InvalidInput("Enter your date range: ");
+                        continue;
+                    }
+
+                } catch (DateTimeParseException e) {
+                    PrintFormatter.InvalidInput("Enter your date range: ");
+                    continue;
+                } catch (Exception e) {
+                    PrintFormatter.InvalidInput("Enter your date range: ");
+                    continue;
+                }
+            }
+
+            DateTimeFormatter f1 = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+            DateTimeFormatter f2 = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+
+            String[] dates = inp.split("-");
+
+            Payslip p = new Payslip();
+            p.setId(employee.getId());
+            p.setPayBeginDate(f2.format(LocalDate.parse(dates[0], f1)));
+            p.setPayEndDate(f2.format(LocalDate.parse(dates[1], f1)));
+            p.setPayDate(f2.format(LocalDate.parse(PayslipDatabase.getTodayDate(), f1)));
+            p.setRegularHours(PayslipDatabase.getRegularHours(dates[0], dates[1], employee.getId()));
+            p.setOvertimehours(PayslipDatabase.getOvertimeHours(dates[0], dates[1], employee.getId()));
+            p.setRegularHoursPay(p.getRegularHours() * employee.getHourlyRate());
+            p.setOvertimeHoursPay(p.getOvertimehours() * employee.getHourlyRate() * 1.25);
+            p.setGrossPay(p.getOvertimeHoursPay() + p.getRegularHoursPay());
+
+            double totalDeduction = 0.00;
+            double sss = Deduction.getSSSContribution(p.getGrossPay() * 4);
+            double ph = Deduction.getPhilhealthContribution(p.getGrossPay() * 4);
+            double pagibig = Deduction.getPagibigContribution(p.getGrossPay() * 4);
+            totalDeduction = sss + ph + pagibig;
+            double tax = Deduction.getWithholdingtax((p.getGrossPay() * 4) - totalDeduction);
+            totalDeduction += tax;
+            double netPay = p.getGrossPay() - (totalDeduction / 4);
+            p.setNetPay(netPay);
+            p.setSss(sss / 4);
+            p.setPhilhealth(ph / 4);
+            p.setPagibig(pagibig / 4);
+            p.setTax(tax / 4);
+
+            List<Payslip> payslips = PayslipDatabase.findAll();
+
+            int i = 0;
+            for (Payslip payslip : payslips) {
+                Payslip pp = payslip;
+                pp.setPayBeginDate(f2.format(LocalDate.parse(pp.getPayBeginDate(), f1)));
+                pp.setPayEndDate(f2.format(LocalDate.parse(pp.getPayEndDate(), f1)));
+                pp.setPayDate(f2.format(LocalDate.parse(pp.getPayDate(), f1)));
+                payslips.set(i, pp);
+                i++;
+            }
+            payslips.add(p);
+            PayslipDatabase.save(payslips);
+
+            PrintFormatter.Panel("Manage Timesheet - Calculate Pay",
+                    new String[] {
+                            "Payslip has been made for ID#" + employee.getId() + " - " + employee.getLastName() },
+                    "Press any key to go back");
+            scanner.nextLine();
+            scanner.nextLine();
+            state = State.PayrollDashboard;
+        }
+        state = State.PayrollDashboard;
+    }
+
+    private static void ViewPendingTimesheet() {
+        PrintFormatter.Panel("Manage Timesheet - View Pending Timesheet",
+                new String[] { "Enter date ranges", "", "Format:",
+                        "MM/dd/yyyy-MM/dd/yyyy for example 02/24/2023-02/26/2023",
+                        "turns to February 24, 2023" },
+                "Enter your date range: ");
+
+        String input = "";
+        boolean isValid = false;
+        DateTimeFormatter df = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+        while (!isValid) {
+            try {
+                while (!scanner.hasNext()) {
+                    scanner.next();
+                    PrintFormatter.InvalidInput("Enter your date range: ");
+                }
+                input = scanner.next();
+                String[] dates = input.split("-");
+                if (LocalDate.parse(dates[0], df) != null && LocalDate.parse(dates[1], df) != null)
+                    isValid = true;
+                else {
+                    PrintFormatter.InvalidInput("Enter your date range: ");
+                    continue;
+                }
+            } catch (Exception e) {
+                PrintFormatter.InvalidInput("Enter your date range: ");
+                continue;
+            }
+        }
+
+        PrintFormatter.Panel("Manage Timesheet - View Pending Timesheet",
+                new String[] { "Loading data...." },
+                "...");
+
+        String[] dates = input.split("-");
+
+        LocalDate start = LocalDate.parse(dates[0], df);
+        LocalDate end = LocalDate.parse(dates[1], df);
+
+        List<String> choices = new ArrayList<String>();
+
+        choices.add(" ---- " + df.format(start) + " - " + df.format(end) + " ---- ");
+        choices.add("");
+        List<EmployeeDetail> employees = PayslipDatabase.findAllPendingEmployeeByWeek(df.format(start),
+                df.format(end));
+        for (EmployeeDetail employeeDetail : employees) {
+            choices.add(EmployeeFormatter(employeeDetail));
+        }
+        choices.add("");
+        choices.add("");
+        PrintFormatter.Panel("View Pending Timesheet",
+                choices.toArray(new String[0]),
+                "Press any key to go back.");
+        scanner.nextLine();
+        scanner.nextLine();
+        state = State.PayrollDashboard;
+    }
+
+    private static String EmployeeFormatter(EmployeeDetail employeeDetail) {
+        return String.format("%15s %15s %15s", (employeeDetail.getId() + ""), employeeDetail.getLastName(),
+                employeeDetail.getFirstName());
+    }
+
+    private static void ManageTimesheet() {
+        PrintFormatter.Panel("Manage Timesheet",
+                new String[] { "1.) View Pending Timesheet", "2.) Calculate Pay", "3.) Back" },
+                "Enter your choice:");
+        int input = 0;
+        boolean valid = false;
+        while (!valid) {
+            try {
+                while (!scanner.hasNextInt()) {
+                    scanner.next();
+                    PrintFormatter.InvalidInput("Enter your choice:");
+                }
+                input = Integer.parseInt(scanner.next());
+                if (input <= 3 && input >= 1)
+                    valid = true;
+                else {
+                    PrintFormatter.InvalidInput("Enter your choice:");
+                }
+            } catch (Exception e) {
+                continue;
+            }
+        }
+        if (input == 1) {
+            state = State.PendingTimesheet;
+        } else if (input == 2) {
+            state = State.CalculatePay;
+        } else if (input == 3) {
+            state = State.PayrollDashboard;
+        }
+    }
+
     private static void PastTimeSheet() {
         List<Timesheet> timesheets = AttendanceDatabase.getSortedTimesheet(loggedInUser.getId());
         List<String> dates = new ArrayList<String>();
@@ -130,7 +354,81 @@ public class Motorph {
     }
 
     private static void ViewPaySlips() {
+        List<String> choices = new ArrayList<String>();
+        List<Payslip> payslips = PayslipDatabase.findAllById(loggedInUser.getId());
+        int index = 1;
+        if (payslips.size() > 0) {
+            for (Payslip payslip : payslips) {
+                choices.add((index++) + ".) " + payslip.getPayBeginDate());
+            }
+            PrintFormatter.Panel("Payslips - ID#" + loggedInUser.getId(), choices.toArray(new String[0]),
+                    "Enter your choice:");
 
+            int input = 0;
+            boolean valid = false;
+            while (!valid) {
+                try {
+                    while (!scanner.hasNextInt()) {
+                        scanner.next();
+                        PrintFormatter.InvalidInput("Enter your choice:");
+                    }
+                    input = Integer.parseInt(scanner.next());
+                    if (input >= 1 && input <= payslips.size())
+                        valid = true;
+                    else {
+                        PrintFormatter.InvalidInput("Enter your choice:");
+                    }
+                } catch (Exception e) {
+                    continue;
+                }
+            }
+
+            List<String> showP = new ArrayList<String>();
+            Payslip p = payslips.get(input - 1);
+            showP.add(" -------- " + "Submitted Pay Date:" + p.getPayDate() + " --------");
+            showP.add("");
+            showP.add(ItemFormatter("Hourly Rate:", loggedInUser.getHourlyRate()));
+            showP.add(ItemFormatter("Pay Start Date:", p.getPayBeginDate()));
+            showP.add(ItemFormatter("Pay End Date:", p.getPayEndDate()));
+            showP.add(ItemFormatter("Regular Hours Worked:", p.getRegularHours()));
+            showP.add(ItemFormatter("Overtime Hours Worked:", p.getOvertimehours()));
+            showP.add("");
+            showP.add(" ---------------------------------------");
+            showP.add("");
+            showP.add(ItemFormatter("Regular Hours Pay:", p.getRegularHoursPay()));
+            showP.add(ItemFormatter("Overtime Hours Pay:", p.getOvertimeHoursPay()));
+            showP.add(ItemFormatter("Gross Pay:", p.getGrossPay()));
+            showP.add("");
+            showP.add(" ---------------------------------------");
+            showP.add("");
+            showP.add(ItemFormatter("SSS Contribution:", p.getSss()));
+            showP.add(ItemFormatter("PhilHealth Contribution:", p.getPhilhealth()));
+            showP.add(ItemFormatter("Pagibig Contribution:", p.getPagibig()));
+            showP.add(ItemFormatter("Withholding Tax:", p.getTax()));
+            showP.add(ItemFormatter("Net Pay:", p.getNetPay()));
+
+            PrintFormatter.Panel("Payslips - ID#" + loggedInUser.getId(), showP.toArray(new String[0]),
+                    "Press any key to go back");
+
+            scanner.nextLine();
+            scanner.nextLine();
+
+            if (accountType == AccountType.Employee)
+                state = State.EmployeeDashboard;
+            else
+                state = State.PayrollDashboard;
+
+        } else {
+            choices.add("You currently have no payslip.");
+            PrintFormatter.Panel("Payslips - ID#" + loggedInUser.getId(), choices.toArray(new String[0]),
+                    "Press any key to go back");
+            scanner.nextLine();
+            scanner.nextLine();
+            if (accountType == AccountType.Employee)
+                state = State.EmployeeDashboard;
+            else
+                state = State.PayrollDashboard;
+        }
     }
 
     static void WelcomePage() {
@@ -376,7 +674,7 @@ public class Motorph {
 
     static void PayrollDashboard() {
         PrintFormatter.Panel("Payroll Dashboard", new String[] { "1.) View Profile", "2.) Timesheet",
-                "3.) View Payslip", "4.) Manage Employees", "5.) Manage Timesheet", "6.) Logout" },
+                "3.) View Payslip", "4.) Manage Timesheet", "5.) Logout" },
                 "Enter your choice:");
         int input = 0;
         boolean valid = false;
@@ -403,10 +701,8 @@ public class Motorph {
         } else if (input == 3) {
             state = State.ViewPayslip;
         } else if (input == 4) {
-            state = State.ViewManageEmployee;
-        } else if (input == 5) {
             state = State.ViewManageTimesheet;
-        } else if (input == 6) {
+        } else if (input == 5) {
             PrintFormatter.Panel("Employee Dashboard", new String[] { "Logging out..." });
             scanner.nextLine();
             scanner.nextLine();
@@ -599,5 +895,13 @@ public class Motorph {
 
     static String DateFormatter(String date, String t1, String t2) {
         return String.format("%25s %10s %10s", date, t1, t2);
+    }
+
+    static String ItemFormatter(String t1, String t2) {
+        return String.format("%25s %15s", t1, t2);
+    }
+
+    static String ItemFormatter(String t1, double t2) {
+        return String.format("%25s %15f", t1, t2);
     }
 }

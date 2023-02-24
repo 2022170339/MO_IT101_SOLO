@@ -4,8 +4,6 @@
  */
 package com.mycompany.motorph.helpers;
 
-import java.util.Scanner;
-
 /**
  *
  * @author reden

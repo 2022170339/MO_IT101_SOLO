@@ -18,4 +18,6 @@ public enum State {
     WrongPassword,
     InvalidInput,
     ListTimeSheet,
+    PendingTimesheet,
+    CalculatePay,
 }

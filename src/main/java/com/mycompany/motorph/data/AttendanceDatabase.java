@@ -12,7 +12,6 @@ import com.mycompany.motorph.helpers.TextFileParser;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.PrintWriter;
-import java.security.KeyStore.Entry.Attribute;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -160,13 +159,14 @@ public class AttendanceDatabase {
         return day == DayOfWeek.SUNDAY || day == DayOfWeek.SATURDAY;
     }
 
-    public static List<Attendance> findAllByIdAndDate(int accountId, LocalDateTime d1, LocalDateTime d2) {
+    public static List<Attendance> findAllByIdAndDate(int accountId, LocalDate d1, LocalDate d2) {
         List<Attendance> attendances = findAll();
         List<Attendance> filtered = new ArrayList<Attendance>();
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("MM/dd/yyyy");
         for (Attendance attendance : attendances) {
             if (attendance.getId() == accountId) {
-                LocalDate date = getDateFromString(getDateClean(attendance.getDate()), "MM/dd/yyyy");
-                if (isWithinRange(date, d1.toLocalDate(), d2.toLocalDate())) {
+                LocalDate date = LocalDate.parse(getDateClean(attendance.getDate()), f);
+                if (isWithinRange(date, d1.minusDays(1), d2.plusDays(1))) {
                     filtered.add(attendance);
                 }
             }
